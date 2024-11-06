@@ -1,0 +1,38 @@
+trigger:
+  - master  # Chạy pipeline khi có commit trên nhánh master
+
+pool:
+  vmImage: 'ubuntu-latest'  # Sử dụng Ubuntu image để chạy pipeline
+
+variables:
+  phpVersion: 8.1  # Phiên bản PHP cần sử dụng
+
+steps:
+# Bước 1: Cài đặt phiên bản PHP
+- script: |
+    sudo update-alternatives --set php /usr/bin/php$(phpVersion)
+    sudo update-alternatives --set phar /usr/bin/phar$(phpVersion)
+    sudo update-alternatives --set phpdbg /usr/bin/phpdbg$(phpVersion)
+    sudo update-alternatives --set php-cgi /usr/bin/php-cgi$(phpVersion)
+    sudo update-alternatives --set phar.phar /usr/bin/phar.phar$(phpVersion)
+    php -v  # Kiểm tra phiên bản PHP
+  displayName: 'Use PHP version $(phpVersion)'
+
+# Bước 2: Cài đặt các phụ thuộc của Composer
+- script: |
+    composer install --no-interaction --prefer-dist
+  displayName: 'composer install'
+
+# Bước 3: Chạy các bài kiểm tra (tests)
+- script: |
+    php vendor/bin/phpunit  # Nếu bạn đang dùng PHPUnit để kiểm tra
+  displayName: 'Run PHPUnit Tests'
+  
+# Bước 4: Tạo Artifact (tạo gói ứng dụng để deploy)
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: $(Build.SourcesDirectory)  # Đường dẫn đến thư mục chứa mã nguồn
+    ArtifactName: 'drop'  # Tên artifact
+    publishLocation: 'Container'  # Vị trí lưu trữ artifact
+    TargetPath: $(Build.ArtifactStagingDirectory)  # Đường dẫn nơi artifact sẽ được lưu trữ trước khi xuất
+  displayName: 'Publish Artifact'
